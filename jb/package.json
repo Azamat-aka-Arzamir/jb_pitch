@@ -1,0 +1,15 @@
+{
+  "name": "jigglyslaughter",
+  "version": "1.0.0",
+  "description": "jiggly button aboba",
+  "license": "ISC",
+  "author": "Arzamas and Wowaser",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "dependencies": {
+    "openssl": "^2.0.0"
+  }
+}

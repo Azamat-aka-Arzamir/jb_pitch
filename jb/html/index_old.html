@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>JoltPhysics.js demo</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link rel="stylesheet" type="text/css" href="../style.css">
+	<style>
+		/* full-viewport overlay that sits above everything */
+		.overlay {
+			position: fixed;
+			inset: 0;
+			/* top:0; right:0; bottom:0; left:0 */
+			display: flex;
+			align-items: top;
+			justify-content: center;
+			z-index: 2147483647;
+			/* very high so it's above other elements */
+			pointer-events: none;
+			/* allow clicks to pass through (remove if you need to interact) */
+			background: transparent;
+			top:0;
+			/* keep background transparent so image alpha shows page under it */
+		}
+
+		/* responsive image that preserves transparency */
+		.overlay img {
+			max-width: 100%;
+			max-height: 100%;
+			width: auto;
+			height: auto;
+			object-fit: contain;
+			display: block;
+		}
+
+		.stretch-x img {
+			width: 100%;
+			/* fill screen horizontally */
+			height: auto;
+			/* keep aspect ratio */
+			max-width: none;
+			object-fit: fill;
+			/* remove max constraint */
+		}
+	</style>
+</head>
+
+<body>
+	<div class="overlay stretch-x" aria-hidden="true">
+		<img src="./html/overlay.png" alt="overlay">
+	</div>
+	<div class="overlay" aria-hidden="true">
+		<img src="./html/text.png" alt="overlay">
+	</div>
+	<div id="container">Loading...</div>
+
+	<script src="./js/three/three.min.js"></script>
+	<script src="./js/three/OrbitControls.js"></script>
+	<script src="./js/three/WebGL.js"></script>
+	<script src="./js/three/stats.min.js"></script>
+	<script src="./js/example.js"></script>
+	<script src="./js/soft-body-creator.js"></script>
+
+	<script type="module">
+		// In case you haven't built the library yourself, replace URL with: https://www.unpkg.com/jolt-physics/dist/jolt-physics.wasm-compat.js
+		import initJolt from 'https://www.unpkg.com/jolt-physics/dist/jolt-physics.wasm-compat.js';
+		const jelly = {
+			color: 0xffffff,
+			transmission: 0.9,
+			opacity: 0.7,
+			metalness: 0,
+			roughness: 0.2,
+			ior: 2.5,
+			thickness: 2.5,
+			attenuationColor: 0xffffff,
+			attenuationDistance: 0.25,
+			specularIntensity: 1,
+			specularColor: 0xffffff,
+			lightIntensity: 1,
+			exposure: 1
+		};
+		var jellyCubeVertices = {}
+		initJolt().then(async function (Jolt) {
+			// Initialize this example
+			initExample(Jolt, null);
+
+			const texLoader = new window.THREE.TextureLoader();
+
+			createFloor(16);
+			const floor = dynamicObjects[dynamicObjects.length - 1];
+
+			await texLoader.load(
+				'./jelly.png',
+				(texture) => {
+					texture.encoding = THREE.sRGBEncoding;
+					texture.needsUpdate = true;
+					texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+					texture.repeat.set(1, 1); // adjust as needed
+					const material = new THREE.MeshPhongMaterial({
+						map: texture, color: 0xffffff, shininess: 0,        // removes highlight completely
+						specular: new THREE.Color(0x000000),
+					});
+					floor.material = material;
+					floor.material.needsUpdate = true;
+				},
+				undefined,
+				(err) => console.error('Texture failed to load', err)
+			);
+
+			camera.position.y -= 4;
+			camera.position.z -= 4;
+
+			const position = new Jolt.RVec3();
+			const rotAxis = new Jolt.Vec3(1, 0, 0);
+			const rotation = Jolt.Quat.prototype.sRotation(rotAxis, -Math.PI / 4 * 0);
+
+			function createGelCube(edgeCompliance, volumeCompliance, x, y, z, color) {
+				// Create shared settings
+				const sharedSettings = SoftBodyCreator.CreateCube(15, 0.2, edgeCompliance, volumeCompliance);
+
+				position.Set(x, y, z)
+
+
+
+				//cube_vertex.at(i).mVelocity.z = 100;
+
+				const bodyCreationSettings = new Jolt.SoftBodyCreationSettings(sharedSettings, position, rotation, LAYER_MOVING);
+				bodyCreationSettings.mGravityFactor = 0
+				bodyCreationSettings.mPressure = 2;
+				bodyCreationSettings.mFriction = 100;
+				bodyCreationSettings.mObjectLayer = LAYER_MOVING;
+				const body = bodyInterface.CreateSoftBody(bodyCreationSettings);
+				addToScene(body, 0xffffff);
+
+				//Jolt.destroy(bodyCreationSettings);
+
+				const mesh = dynamicObjects[dynamicObjects.length - 1];
+				const jellyMaterial = new THREE.MeshPhysicalMaterial({
+					/*color: new THREE.Color(0xDDB13), // pinkish jelly color
+					transparent: true,
+					opacity: 0.6,                  // soft transparency
+					transmission: 0.1,             // glass-like transmission
+					roughness: 0.1,                // smooth surface
+					metalness: 0,                   // non-metallic
+					clearcoat: 1.0,                 // adds extra shine
+					clearcoatRoughness: 0.05,       // smooth glossy finish
+					reflectivity: 0.5,             // reflections
+					ior: 1.33,                      // index of refraction (like jelly / water)
+					specularIntensity: 1.0,*/
+					color: 0xffffff,
+					transmission: 2.8,
+					opacity: 0.1,
+					metalness: 0,
+					roughness: 0.0,
+					ior: 2.5,
+					thickness: 1.8,
+					attenuationColor: 0xffffff,
+					attenuationDistance: 1.5,
+					specularIntensity: 0.06,
+					specularColor: 0xffffff,
+					lightIntensity: .02,
+					exposure: 1,
+					transparent: false,
+				});
+
+				// Fresnel effect using onBeforeCompile for subtle edge glow
+				jellyMaterial.onBeforeCompile = (shader) => {
+					shader.fragmentShader = shader.fragmentShader.replace(
+						`#include <dithering_fragment>`,
+						`
+        				#include <dithering_fragment>
+
+       					 // Fresnel edge glow
+						float fresnel = pow(1.0 - dot(normalize(vViewPosition), normal), 2.0);
+        				vec3 fresnelColor = vec3(0.3, 1.0, 0.0) * fresnel * 0.7; // subtle white edges
+						gl_FragColor.rgb += fresnelColor;
+        				`
+					);
+				};
+
+				jellyMaterial.side = THREE.DoubleSide; // show both sides for transparent jel
+				const [r, g, b] = color;
+				jellyMaterial.attenuationColor.setRGB(r, g, b);
+				mesh.material = jellyMaterial;
+
+				jellyCubeVertices = Jolt.castObject(body.GetMotionProperties(), Jolt.SoftBodyMotionProperties).GetVertices();
+				const vertCopy = []
+				const startPos = []
+				for (let i = 0; i < jellyCubeVertices.size(); i++) {
+					vertCopy.push(jellyCubeVertices.at(i))
+					startPos.push({
+						x: jellyCubeVertices.at(i).mPosition.GetX(),
+						y: jellyCubeVertices.at(i).mPosition.GetY(),
+						z: jellyCubeVertices.at(i).mPosition.GetZ(),
+					})
+				}
+
+				var minY = Infinity;
+				var maxY = -Infinity;
+				vertCopy.forEach(element => {
+					if (element.mPosition.GetY() < minY) minY = element.mPosition.GetY()
+					if (element.mPosition.GetY() > maxY) maxY = element.mPosition.GetY()
+					//e.mInvMass = 1
+				});
+				const staticVerts = vertCopy.filter(e => e.mPosition.GetY() == minY)
+				const shakyVerts = vertCopy.filter(e => e.mPosition.GetY() == maxY)
+				staticVerts.forEach(e => e.mInvMass = 0)
+				var h = false;
+
+				document.body.onpointerdown = (() => {
+					bodyInterface.ActivateBody(body.GetID())
+					staticVerts.forEach(e => {
+						//e.mPosition.SetZ(e.mPosition.GetZ()*1.5)
+						//e.mVelocity.SetZ(-100)
+					});
+					h = true
+					point.intensity = .6;
+					console.log(body.IsActive())
+					Jolt.castObject(body.GetMotionProperties(), Jolt.SoftBodyMotionProperties).SetGravityFactor(0)
+				})
+				document.body.onpointerup = (() => {
+					bodyInterface.ActivateBody(body.GetID())
+					staticVerts.forEach(e => {
+						//e.mPosition.SetZ(e.mPosition.GetZ()/1.5)
+						//e.mVelocity.SetZ(-100)
+					});
+					h = false
+					point.intensity = 0;
+					console.log(body.IsActive())
+					Jolt.castObject(body.GetMotionProperties(), Jolt.SoftBodyMotionProperties).SetGravityFactor(0)
+				})
+
+				let lastMousePos = { x: 0, y: 0 };
+				let lastAccel = { accX: 0, accZ: 0 }
+				var delta = { x: 0, y: 0 }
+				let sync = true;
+				window.addEventListener('mousemove', (event) => {
+					// Current mouse position
+					const currentMousePos = { x: event.clientX, y: event.clientY };
+
+					// Calculate delta vector
+					delta = {
+						x: currentMousePos.x - lastMousePos.x,
+						y: currentMousePos.y - lastMousePos.y
+					};
+
+					//console.log('Mouse delta:', delta);
+
+					// Update last mouse position
+					lastMousePos = currentMousePos;
+				});
+				window.addEventListener('devicemotion', (event) => {
+					if (!sync) return;
+					const acc = event.accelerationIncludingGravity;
+					if (!acc) return;
+					delta.accX = (acc.x ?? 0);
+					//this.#accY = acc.y ?? 0;
+					delta.accZ = (acc.z ?? 0);
+					lastAccel = { accX: acc.x ?? 0, accZ: acc.z ?? 0 }
+					sync = false
+				});
+				onUpdate = () => {
+
+					//alert(delta.accX?delta.accX:0)
+					mesh.geometry.computeVertexNormals();
+					mesh.geometry.normalsNeedUpdate = true;
+					bodyInterface.ActivateBody(body.GetID())
+
+					shakyVerts.forEach(e => {
+						e.mVelocity.Set(delta.x / 1 + (delta.accX ? delta.accX : 0) * -70, e.mVelocity.GetY(), delta.y / 1 + (delta.accX ? delta.accZ : 0) * -70)
+					});
+					delta = { x: 0, y: 0, accX: 0, accZ: 0 }
+					if (h) {
+						vertCopy.filter(e => !staticVerts.includes(e)).forEach((e, i) => {
+
+							//e.mVelocity.SetZ((e.mPosition.GetZ()) * 30)
+							if (Math.abs(e.mPosition.GetX()) < 20) {
+
+								e.mVelocity.SetY(-2 * (2 - Math.abs(e.mPosition.GetX())))
+								if (e.mPosition.GetY() < .2) {
+									e.mVelocity.SetX((startPos[i].x) * 20)
+									//e.mVelocity.SetZ((startPos[i].z) * 20 )
+								}
+
+							}
+							else {
+								//e.mVelocity.SetY(2*(Math.abs(e.mPosition.GetX())))
+								//e.mVelocity.SetX((e.mPosition.GetX()) * 5*(1))
+							}
+						});
+					}
+					sync = true
+				}
+			}
+
+			// Compliance in constraints are calculated here in 10^negative values and are inverse-values, so closer to 0 is closer to infinity
+			// These will be very, very small floating values to maintain cube-like structure
+			// Most values of even 10e-3 (0.0001) are too large to maintain structural integrity and we need to go even smaller towards -7 or -8
+			createGelCube(10e-8, 10e-8, 0, 0.5, 0, [1, 1, 1]);
+		});
+	</script>
+</body>
+
+</html>
