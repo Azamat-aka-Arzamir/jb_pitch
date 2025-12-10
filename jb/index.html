@@ -397,7 +397,7 @@
 			const material_cube = new THREE.MeshBasicMaterial({ color: 0x888888 });
 			const cubebg = new THREE.Mesh(geometry, material_cube);
 			const loader = new THREE.OBJLoader();
-			const object = await loader.loadAsync('/untitled.obj');
+			const object = await loader.loadAsync('./untitled.obj');
 			object.traverse((child) => {
 				if (child.isMesh) {
 					child.material = glassMat;
