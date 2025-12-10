@@ -263,15 +263,15 @@
 				camera.position.y -= 4;
 				camera.position.z -= 4;
 				camera.position.set(0, 15, 12);
-				camera.lookAt(new THREE.Vector3(0, 0, -7));
-				camera.fov = 70
+				camera.lookAt(new THREE.Vector3(0, 0, -2));
+				camera.fov = 50
 				camera.updateProjectionMatrix();
 				scene.add(mesh)
 				scene.add(floor)
 				mesh = dynamicObjects[dynamicObjects.length - 1];
 
 				document.getElementById("container").style.marginTop = "0"
-				document.getElementById("container").style.top = "-50px"
+				document.getElementById("container").style.top = "0px"
 				dirLight.intensity = 0
 				ambient.intensity = 0.7
 				//

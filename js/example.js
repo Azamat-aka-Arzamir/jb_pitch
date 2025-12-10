@@ -69,7 +69,7 @@ function initGraphics() {
 	renderer = new THREE.WebGLRenderer({ taa: true, antialias: true });
 	renderer.setClearColor(0x48B2A6);
 	renderer.setPixelRatio(window.devicePixelRatio);
-	renderer.setSize(window.innerWidth, window.outerHeight+100);
+	renderer.setSize(window.innerWidth, window.outerHeight);
 /*
 	const composer = new EffectComposer(renderer);
 
